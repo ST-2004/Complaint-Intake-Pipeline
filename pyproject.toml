@@ -1,0 +1,61 @@
+[project]
+name = "complaint-intake"
+version = "0.1.0"
+description = "AI-assisted bank complaint triage on Azure with privacy by design (synthetic data only)."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.12"
+# Exact pins on purpose: SDKs in this space rename things between releases.
+# Run `python tasks.py smoke` after any upgrade. Full transitive lock: requirements.lock
+dependencies = [
+    "azure-identity==1.27.0",
+    "azure-ai-textanalytics==5.4.0",
+    "openai==3.49.0",
+    "pydantic==2.14.3",
+    "pydantic-settings==2.16.2",
+    "python-dotenv==1.2.4",
+]
+
+[project.optional-dependencies]
+# Local PII fallback (PII_PROVIDER=presidio). Included in requirements.lock.
+presidio = [
+    "presidio-analyzer==2.2.366",
+    "spacy==3.8.18",
+    "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
+]
+dev = [
+    "pytest==9.2.0",
+    "ruff==0.17.4",
+    "pre-commit==4.7.0",
+    "detect-secrets==1.5.0",
+]
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "scripts", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "SIM"]
+ignore = [
+    "S603", # subprocess calls are intentional (az / terraform) and never use shell=True
+    "S607", # executables are resolved with shutil.which
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -m 'not integration'"
+markers = [
+    "integration: calls real Azure services; run manually after apply with `pytest -m integration`",
+]

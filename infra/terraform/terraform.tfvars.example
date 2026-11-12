@@ -1,0 +1,19 @@
+# Copy to terraform.tfvars (git-ignored) and adjust for your subscription.
+# Run `python tasks.py preflight` first: it checks region, quota and the F0 slot.
+
+location     = "eastus2"
+language_sku = "F0" # "S" if this subscription already has an F0 Language account
+
+deploy_model          = true
+model_deployment_name = "triage-model"
+model_name            = "gpt-4.1-mini"
+model_version         = "2025-04-14"
+model_sku             = "GlobalStandard"
+model_capacity        = 10
+
+assign_roles       = true
+local_auth_enabled = false
+
+tags = {
+  owner = "your-alias"
+}
