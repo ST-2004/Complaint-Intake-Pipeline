@@ -37,8 +37,9 @@ class Settings(BaseSettings):
     db_path: str = "./triage.db"
     request_timeout_s: float = Field(default=30.0, gt=0)
 
-    # Classifier (M2)
+    # Classifier (M2) and rules (M3)
     prompt_version: str = "classify_v1"
+    rules_version: str = "rules_v1"
     model_temperature: float = Field(default=0.0, ge=0.0, le=2.0)
     model_max_output_tokens: int = Field(default=400, ge=50)
     # USD per 1M tokens, for cost reporting only. Defaults are gpt-4.1-mini

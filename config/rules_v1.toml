@@ -1,0 +1,53 @@
+# Deterministic rules configuration (rules_v1).
+# Reviewable without touching code. Changing anything here that alters behaviour
+# means a new version: copy to rules_v2.toml and set RULES_VERSION=rules_v2.
+# Rules only ever ADD scrutiny: none can lower a severity or remove a review.
+# Matching is case-insensitive on the REDACTED text, on word boundaries.
+
+version = "rules_v1"
+
+[input]
+min_chars = 20              # shorter than this is "too short to judge" (R6)
+min_words = 4
+max_chars = 20000           # longer is not processed at all; a human handles it
+min_letter_ratio = 0.5      # below this the text looks like symbols/noise (R6)
+
+# R3: regulator, ombudsman, lawyer or legal action.
+[r3_regulatory]
+terms = [
+  "regulator", "regulatory", "ombudsman", "ombudsperson", "obsi", "fcac",
+  "cfpb", "fca", "financial ombudsman", "lawyer", "attorney", "solicitor",
+  "legal action", "take legal", "sue", "suing", "lawsuit", "court",
+  "small claims", "class action", "file a complaint with", "report you to",
+]
+
+# R4: serious distress or vulnerability. Key phrases are checked as well as the text.
+[r4_distress]
+terms = [
+  "suicide", "suicidal", "kill myself", "end my life", "end it all",
+  "self-harm", "self harm", "hurt myself", "don't see the point",
+  "dont see the point", "can't go on", "cant go on", "hopeless", "give up on life",
+  "can't feed", "cant feed", "can't afford food", "homeless", "evicted",
+  "abuse", "abusive partner", "coerced", "scared for my safety", "threatened me",
+]
+
+# Input check: injection-like phrases. A flag raises scrutiny (R5); it is a
+# signal, not a verdict. Regular expressions, case-insensitive.
+[injection]
+patterns = [
+  # Up to three qualifiers: "ignore your previous instructions", "ignore all the above rules".
+  'ignore (all |any )?((previous|prior|above|earlier|your|the|these|those|my|system) ){1,3}(instructions|rules|prompts?)',
+  'disregard (all |any )?((previous|prior|above|earlier|your|the|these|those|my|system) ){1,3}(instructions|rules|prompts?)',
+  'forget (all |any )?((previous|prior|above|earlier|your|the) ){1,3}(instructions|rules)',
+  '(system|developer) (prompt|message|note|mode)',
+  'you are now',
+  'act as (a|an|the)',
+  '(classify|label|mark|categori[sz]e) (this|it|me) as',
+  'set (requires_human_review|severity|category)',
+  'requires_human_review',
+  'print (your|the) (prompt|instructions)',
+  'reveal (your|the) (prompt|instructions)',
+  '</?\s*complaint\s*>',
+  'refund me automatically',
+  'close (this|the) case',
+]

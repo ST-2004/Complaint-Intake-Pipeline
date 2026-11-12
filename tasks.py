@@ -10,6 +10,10 @@ Tasks:
   smoke       one call to the Language service and one to the model
   pii-check   redact the seeded samples and report leaks [--provider presidio] [--show] [--enrich]
   classify-check  redact + enrich + classify the 10 labelled samples [--show]
+  run         triage one complaint end to end: run "text" | run --file f.txt | run --json "text"
+  review      human-review queue: review list | show <id> | approve <id> --reviewer x |
+              override <id> --reviewer x --category C --severity S --reason "..."
+              (stats: python -m complaint_intake.cli stats)
   test        unit tests (no cloud)
   lint        ruff + terraform fmt -check + terraform validate
   fmt         auto-format Python and Terraform
@@ -116,6 +120,14 @@ def task_classify_check(args: list[str]) -> None:
     sh(venv_python(), "-m", "complaint_intake.classify_check", *args)
 
 
+def task_run(args: list[str]) -> None:
+    sh(venv_python(), "-m", "complaint_intake.cli", "triage", *args)
+
+
+def task_review(args: list[str]) -> None:
+    sh(venv_python(), "-m", "complaint_intake.cli", "review", *(args or ["list"]))
+
+
 def task_test(args: list[str]) -> None:
     sh(venv_python(), "-m", "pytest", *args)
 
@@ -191,6 +203,8 @@ TASKS = {
     "smoke": task_smoke,
     "pii-check": task_pii_check,
     "classify-check": task_classify_check,
+    "run": task_run,
+    "review": task_review,
     "test": task_test,
     "lint": task_lint,
     "fmt": task_fmt,

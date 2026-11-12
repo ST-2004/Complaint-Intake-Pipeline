@@ -8,6 +8,7 @@ a spaCy model; the small model is the default and is weaker than Azure.
 
 from __future__ import annotations
 
+import logging
 from functools import lru_cache
 
 from complaint_intake.redaction.base import (
@@ -48,6 +49,11 @@ PRESIDIO_ENTITY_TAGS: dict[str, str] = {
 }
 
 DEFAULT_SCORE_THRESHOLD = 0.3
+
+# Presidio's DEBUG logs print the words around each match ("Context list is: ...
+# s.gallagher@example.net email"), i.e. raw PII. Found by the M3 no-PII-in-logs
+# test. Pin its logger to WARNING so app-level DEBUG logging cannot leak it (P2).
+logging.getLogger("presidio-analyzer").setLevel(logging.WARNING)
 
 
 def luhn_valid(digits: str) -> bool:

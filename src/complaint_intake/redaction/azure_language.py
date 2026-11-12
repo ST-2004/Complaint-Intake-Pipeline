@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from itertools import batched
 
 from complaint_intake.redaction.base import (
@@ -49,6 +50,11 @@ AZURE_CATEGORY_TAGS: dict[str, str] = {
     "CAHealthServiceNumber": GOVERNMENT_ID,
     "CAPersonalHealthIdentification": GOVERNMENT_ID,
 }
+
+# The PII call carries RAW text. azure-core's HTTP logging can include request
+# details at DEBUG, so keep these loggers at WARNING regardless of app log level (P2).
+for _name in ("azure.core.pipeline.policies.http_logging_policy", "azure.ai.textanalytics"):
+    logging.getLogger(_name).setLevel(logging.WARNING)
 
 # Service limits for synchronous PII calls (verify on the current Language docs):
 # 5,120 characters per document, 5 documents per request.

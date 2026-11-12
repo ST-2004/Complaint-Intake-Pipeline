@@ -17,7 +17,7 @@ entire environment in any subscription that allows it.
 | **M0** Foundations and infrastructure spike | Done: apply, env, smoke, destroy and a second apply verified (westus3, ~2 min each way) |
 | **M1** PII detection and enrichment | Done: Azure and Presidio providers, 0 / 28 seeded values leaked on both ([details](docs/pii-redaction.md)) |
 | **M2** LLM classifier | Done: 10/10 schema-valid on the first attempt, prompt version recorded ([details](docs/classifier.md)) |
-| M3 Rules, routing, audit log and review | not started |
+| **M3** Rules, routing, audit log and review | Done: end-to-end pipeline, rules R1-R8, review queue, 0/28 seeded PII in the database ([details](docs/rules-and-review.md)) |
 | M4 Dataset and evaluation harness | not started |
 | M5 Hardening | not started |
 | M6 Docs, CI and showcase | not started |
@@ -39,6 +39,8 @@ copy infra\terraform\terraform.tfvars.example infra\terraform\terraform.tfvars  
 python tasks.py infra-up           # terraform init + apply (asks to confirm)
 python tasks.py env                # writes .env from terraform outputs
 python tasks.py smoke              # one PII call + one model call, Entra ID auth
+python tasks.py run "My card was charged twice for the same purchase..."   # triage one complaint
+python tasks.py review             # human-review queue (works offline too)
 python tasks.py infra-down         # terraform destroy + check nothing is left behind
 ```
 
@@ -64,12 +66,14 @@ for cost, limits and what each subscription allowed.
 ```
 infra/terraform/     Terraform: versions, variables, main, outputs, example tfvars
 scripts/             preflight.py, make_env.py (Python so they run on Windows too)
-src/complaint_intake config, auth, redaction/ (Azure + Presidio), enrichment,
-                     schemas, prompts, model_client, classifier, smoke, checks
+src/complaint_intake config, auth, input_checks, redaction/ (Azure + Presidio),
+                     enrichment, schemas, prompts, model_client, classifier, rules,
+                     pipeline, store (SQLite audit + review), cli, smoke, checks
 prompts/             versioned prompts (classify_v1.md)
+config/              versioned rules configuration (rules_v1.toml)
 data/                synthetic samples only (see data/README.md)
 tests/               unit tests (offline) + integration tests (marked)
-docs/                cost-and-limits.md, pii-redaction.md, classifier.md
+docs/                cost-and-limits.md, pii-redaction.md, classifier.md, rules-and-review.md
 tasks.py             task runner
 ```
 
