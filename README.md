@@ -16,7 +16,7 @@ entire environment in any subscription that allows it.
 |---|---|
 | **M0** Foundations and infrastructure spike | Done: apply, env, smoke, destroy and a second apply verified (westus3, ~2 min each way) |
 | **M1** PII detection and enrichment | Done: Azure and Presidio providers, 0 / 28 seeded values leaked on both ([details](docs/pii-redaction.md)) |
-| M2 LLM classifier | not started |
+| **M2** LLM classifier | Done: 10/10 schema-valid on the first attempt, prompt version recorded ([details](docs/classifier.md)) |
 | M3 Rules, routing, audit log and review | not started |
 | M4 Dataset and evaluation harness | not started |
 | M5 Hardening | not started |
@@ -46,7 +46,8 @@ New role assignments can take 5-10 minutes to work; if `smoke` returns 401/403 r
 after `infra-up`, wait and retry.
 
 Other tasks: `pii-check` (redact the seeded samples and report leaks; add
-`--provider presidio` to run fully offline), `test` (unit tests, no cloud), `lint`
+`--provider presidio` to run fully offline), `classify-check` (redact, enrich and
+classify 10 labelled samples; needs the environment up), `test` (unit tests, no cloud), `lint`
 (ruff + terraform fmt/validate), `fmt`, `leftovers`. Live tests: `pytest -m integration`.
 
 ## What gets created
@@ -63,10 +64,12 @@ for cost, limits and what each subscription allowed.
 ```
 infra/terraform/     Terraform: versions, variables, main, outputs, example tfvars
 scripts/             preflight.py, make_env.py (Python so they run on Windows too)
-src/complaint_intake config, auth, redaction/ (Azure + Presidio), enrichment, smoke, pii_check
+src/complaint_intake config, auth, redaction/ (Azure + Presidio), enrichment,
+                     schemas, prompts, model_client, classifier, smoke, checks
+prompts/             versioned prompts (classify_v1.md)
 data/                synthetic samples only (see data/README.md)
 tests/               unit tests (offline) + integration tests (marked)
-docs/                cost-and-limits.md, pii-redaction.md
+docs/                cost-and-limits.md, pii-redaction.md, classifier.md
 tasks.py             task runner
 ```
 

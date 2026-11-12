@@ -9,6 +9,7 @@ Tasks:
   env         write .env from terraform outputs
   smoke       one call to the Language service and one to the model
   pii-check   redact the seeded samples and report leaks [--provider presidio] [--show] [--enrich]
+  classify-check  redact + enrich + classify the 10 labelled samples [--show]
   test        unit tests (no cloud)
   lint        ruff + terraform fmt -check + terraform validate
   fmt         auto-format Python and Terraform
@@ -111,6 +112,10 @@ def task_pii_check(args: list[str]) -> None:
     sh(venv_python(), "-m", "complaint_intake.pii_check", *args)
 
 
+def task_classify_check(args: list[str]) -> None:
+    sh(venv_python(), "-m", "complaint_intake.classify_check", *args)
+
+
 def task_test(args: list[str]) -> None:
     sh(venv_python(), "-m", "pytest", *args)
 
@@ -185,6 +190,7 @@ TASKS = {
     "env": task_env,
     "smoke": task_smoke,
     "pii-check": task_pii_check,
+    "classify-check": task_classify_check,
     "test": task_test,
     "lint": task_lint,
     "fmt": task_fmt,

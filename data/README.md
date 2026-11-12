@@ -10,4 +10,6 @@ No customer, employer or real-institution data is used.
 |---|---|
 | `samples/pii_samples.jsonl` | 10 hand-written complaints with seeded PII (M1). Each line lists its `seeded` values so the leak check is mechanical. Includes deliberate hard cases: an all-lowercase name, two people in one complaint, and one complaint with no PII. |
 
+| `samples/classify_samples.jsonl` | 10 complaints with a drafted label (category, severity, needs-review) for the M2 sanity check. One is a prompt-injection attempt. |
+
 The labelled dev / held-out sets, red-team and counterfactual sets arrive in M4.

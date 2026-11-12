@@ -37,6 +37,15 @@ class Settings(BaseSettings):
     db_path: str = "./triage.db"
     request_timeout_s: float = Field(default=30.0, gt=0)
 
+    # Classifier (M2)
+    prompt_version: str = "classify_v1"
+    model_temperature: float = Field(default=0.0, ge=0.0, le=2.0)
+    model_max_output_tokens: int = Field(default=400, ge=50)
+    # USD per 1M tokens, for cost reporting only. Defaults are gpt-4.1-mini
+    # Global Standard list prices when this was written; verify on the pricing page.
+    model_price_in_per_1m: float = Field(default=0.40, ge=0)
+    model_price_out_per_1m: float = Field(default=1.60, ge=0)
+
     @field_validator("azure_language_endpoint", "azure_ai_endpoint")
     @classmethod
     def _https_only(cls, value: str | None) -> str | None:
