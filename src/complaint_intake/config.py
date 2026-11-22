@@ -38,7 +38,9 @@ class Settings(BaseSettings):
     request_timeout_s: float = Field(default=30.0, gt=0)
 
     # Classifier (M2) and rules (M3)
-    prompt_version: str = "classify_v1"
+    # classify_v2 (M5): privacy definition, severity thresholds, strict distress,
+    # tone neutrality. classify_v1 is kept so the M4 baseline stays reproducible.
+    prompt_version: str = "classify_v2"
     rules_version: str = "rules_v1"
     model_temperature: float = Field(default=0.0, ge=0.0, le=2.0)
     model_max_output_tokens: int = Field(default=400, ge=50)

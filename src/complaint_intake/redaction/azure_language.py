@@ -22,6 +22,7 @@ from complaint_intake.redaction.base import (
     chunk_text,
     merge_spans,
     propagate_names,
+    signoff_name_spans,
 )
 
 # Category filter: only these Azure categories are requested and redacted.
@@ -109,6 +110,7 @@ class AzureLanguageRedactor:
             # we do not chain them, so nothing from the call can reach a log.
             raise RedactionError(f"azure_language: {type(exc).__name__}") from None
 
+        spans += signoff_name_spans(text)
         merged = merge_spans(spans + propagate_names(text, spans))
         return RedactionResult(
             text=apply_spans(text, merged),

@@ -30,7 +30,7 @@ def test_live_classification_is_schema_valid_and_versioned(classifier):
     )
     assert out.triage.category == "FRAUD_UNAUTHORIZED"
     assert out.triage.requires_human_review
-    assert out.prompt_version == "classify_v1" and out.attempts <= 2
+    assert out.prompt_version == Settings().prompt_version and out.attempts <= 2
     assert out.usage.prompt_tokens > 0
 
 

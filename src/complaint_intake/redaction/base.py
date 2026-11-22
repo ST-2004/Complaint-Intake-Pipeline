@@ -96,6 +96,63 @@ def apply_spans(text: str, spans: Iterable[Span]) -> str:
     return "".join(out)
 
 
+# One to three capitalised words; accented letters allowed (Renée, Núñez).
+_NAME = (
+    r"[A-ZÀ-Þ][a-zß-ÿ'\-]+"
+    r"(?:\s[A-ZÀ-Þ][a-zß-ÿ'\-]+){1,2}"
+)
+_LEADS = (
+    "name is ",
+    "Name is ",
+    "I'm ",
+    "I am ",
+    "This is ",
+    "this is ",
+    "Name ",
+    "daughter ",
+    "son ",
+    "husband ",
+    "wife ",
+    "Regards, ",
+    "Thanks, ",
+    "Sincerely, ",
+)
+_SIGNOFF_PATTERNS = (
+    # After a sentence end or line break, standing alone at the end or before a comma:
+    # "... called five times. Aayush Stone" / "... ombudsman. Pratyush Guay, 416-..."
+    re.compile(rf"(?<=[.!?] ){_NAME}(?=\s*(?:,|$))"),
+    re.compile(rf"(?<=\n){_NAME}(?=\s*(?:,|$))"),
+    re.compile(rf"^{_NAME}(?=\s*,)"),
+    *(re.compile(rf"(?<={re.escape(lead)}){_NAME}") for lead in _LEADS),
+)
+_SIGNOFF_STOP = frozenset(
+    {
+        "thank you",
+        "thanks again",
+        "best regards",
+        "kind regards",
+        "maple harbour bank",
+        "please help",
+        "please advise",
+    }
+)
+
+
+def signoff_name_spans(text: str) -> list[Span]:
+    """PERSON spans for names that NER models miss because nothing marks them as names.
+
+    Found in the M4 baseline: Azure AI Language left a bare sign-off ("Please
+    investigate. Owen Mand") unredacted in 3 of 55 seeded names; spaCy did the same.
+    Case-sensitive on purpose. Errs towards over-redaction (the safe direction).
+    """
+    spans: list[Span] = []
+    for pattern in _SIGNOFF_PATTERNS:
+        for m in pattern.finditer(text):
+            if m.group().lower() not in _SIGNOFF_STOP:
+                spans.append(Span(m.start(), m.end(), PERSON))
+    return spans
+
+
 _WORD = re.compile(r"[^\W\d_][\w'\-]*")
 _NOT_NAMES = frozenset(
     {

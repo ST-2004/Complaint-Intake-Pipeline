@@ -105,6 +105,14 @@ def test_fails_closed_without_echoing_text(client):
     assert info.value.__cause__ is None
 
 
+def test_signoff_name_missed_by_the_service_is_still_redacted():
+    # M4 baseline: Azure left "Please investigate. Owen Mand" unredacted.
+    text = "Someone opened a card in my name. Please investigate. Owen Mand"
+    result = AzureLanguageRedactor(FakeClient()).redact(text)  # fake finds no name here
+    assert "Owen" not in result.text and "Mand" not in result.text
+    assert "PERSON" in result.categories
+
+
 def test_empty_text_skips_the_service():
     client = FakeClient()
     result = AzureLanguageRedactor(client).redact("   ")

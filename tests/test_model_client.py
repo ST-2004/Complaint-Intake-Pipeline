@@ -80,6 +80,17 @@ def test_azure_prompt_filter_becomes_content_filter_error():
     assert info.value.categories == ("jailbreak", "violence")
 
 
+def test_prompt_shield_detected_without_filtered_is_recorded():
+    body = {
+        "code": "content_filter",
+        "innererror": {"content_filter_result": {"indirect_attack": {"detected": True}}},
+    }
+    client, _ = client_for(bad_request(body))
+    with pytest.raises(ContentFilterError) as info:
+        call(client)
+    assert info.value.categories == ("indirect_attack",)
+
+
 def test_other_bad_request_is_model_call_error():
     client, _ = client_for(bad_request({"code": "invalid_request"}))
     with pytest.raises(ModelCallError):

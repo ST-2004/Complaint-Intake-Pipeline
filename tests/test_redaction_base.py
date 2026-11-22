@@ -8,6 +8,7 @@ from complaint_intake.redaction.base import (
     chunk_text,
     merge_spans,
     propagate_names,
+    signoff_name_spans,
 )
 
 
@@ -64,6 +65,36 @@ def test_propagate_names_skips_titles_and_pronouns():
     detected = [Span(3, 9, PERSON)]
     extra = propagate_names(text, detected)
     assert [text[s.start : s.end] for s in extra] == ["Becker"]  # "said" is lowercase, kept
+
+
+@pytest.mark.parametrize(
+    "text,name",
+    [
+        ("I've called five times. Aayush Stone", "Aayush Stone"),  # M4 dev leak (aa-01)
+        ("I will go to the ombudsman. Pratyush Guay", "Pratyush Guay"),  # M4 dev leak (fe-06)
+        ("The deposit is missing. Renée Boily, 416-555-0101", "Renée Boily"),
+        ("Please call back.\nDaniela Ortiz Vega", "Daniela Ortiz Vega"),
+        ("My name is Ekiya Gravel and my card was declined.", "Ekiya Gravel"),
+        ("I am her daughter Ines Duarte.", "Ines Duarte"),
+        ("Ahmed Karimi, 613-555-0190. My card is blocked.", "Ahmed Karimi"),
+    ],
+)
+def test_signoff_names_are_found(text, name):
+    assert apply_spans(text, signoff_name_spans(text)).count("[PERSON]") == 1
+    assert name not in apply_spans(text, signoff_name_spans(text))
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "The app crashes. Thank You",
+        "I am trying to open an account.",  # lowercase after the lead: not a name
+        "This is the third time.",
+        "I bank with Maple Harbour Bank. Maple Harbour Bank",
+    ],
+)
+def test_signoff_does_not_tag_ordinary_text(text):
+    assert signoff_name_spans(text) == []
 
 
 def test_propagate_names_noop_without_person_spans():

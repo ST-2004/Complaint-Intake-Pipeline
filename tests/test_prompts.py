@@ -12,6 +12,29 @@ def test_classify_v1_exists_and_covers_taxonomy():
     assert "untrusted" in prompt.text and "<complaint>" in prompt.text
 
 
+def test_default_prompt_is_v2_and_v1_is_kept():
+    from complaint_intake.config import Settings
+
+    assert Settings().prompt_version == "classify_v2"
+    assert load_prompt("classify_v1").sha256 != load_prompt("classify_v2").sha256
+
+
+def test_classify_v2_addresses_the_m4_failure_categories():
+    text = load_prompt("classify_v2").text
+    for value in [*Category, *Severity]:
+        assert value.value in text
+    # privacy definition (pd-04 opt-out calls, pd-07 credit bureau)
+    assert "opted out" in text and "credit bureau" in text
+    # severity thresholds from the labelling guide (lm-04 $4,200 rated MEDIUM)
+    assert "$1,000" in text and "30 days" in text and "$10" in text
+    # strict distress (7 HIGH/MEDIUM -> CRITICAL via the model flag)
+    assert "SERIOUS distress only" in text and "embarrassment" in text
+    # tone neutrality (cf-06 all caps changed severity)
+    assert "capital letters" in text
+    # the injection defences from v1 are still there
+    assert "untrusted customer content" in text and "injection_suspected" in text
+
+
 def test_unknown_or_unsafe_prompt_names_are_rejected():
     for bad in ("classify_v999", "../secrets", "Classify V1"):
         with pytest.raises(FileNotFoundError):

@@ -131,8 +131,14 @@ def _filtered_categories(exc: Exception) -> tuple[str, ...]:
     if not isinstance(body, dict):
         return ()
     result = (body.get("innererror") or {}).get("content_filter_result") or {}
+    # Harm categories report "filtered"; Prompt Shields report "detected" (M4: one
+    # red-team block came back with no category because only "detected" was set).
     return tuple(
-        sorted(name for name, v in result.items() if isinstance(v, dict) and v.get("filtered"))
+        sorted(
+            name
+            for name, v in result.items()
+            if isinstance(v, dict) and (v.get("filtered") or v.get("detected"))
+        )
     )
 
 

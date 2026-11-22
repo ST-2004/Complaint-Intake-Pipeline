@@ -27,11 +27,11 @@ from complaint_intake.redaction.base import (
     apply_spans,
     merge_spans,
     propagate_names,
+    signoff_name_spans,
 )
 
 PRESIDIO_ENTITY_TAGS: dict[str, str] = {
     "PERSON": PERSON,
-    "PERSON_INTRO": PERSON,
     "PHONE_NUMBER": PHONE_NUMBER,
     "EMAIL_ADDRESS": EMAIL,
     "LOCATION": ADDRESS,
@@ -127,42 +127,12 @@ def _custom_recognizers():
                 "reference",
             ],
         ),
-        PatternRecognizer(
-            supported_entity="PERSON_INTRO",
-            global_regex_flags=CASE_SENSITIVE,
-            # spaCy's small model misses names standing alone, typically a sign-off
-            # ("... called five times. Aayush Stone") or an introduction. Fixed-width
-            # look-behinds keep the match to the name itself.
-            patterns=[
-                Pattern("signoff", rf"(?<=[.!?] ){_NAME}(?=\s*(?:,|$))", 0.5),
-                Pattern("signoff_line", rf"(?<=\n){_NAME}(?=\s*(?:,|$))", 0.5),
-                *(
-                    Pattern(f"intro_{i}", rf"(?<={lead}){_NAME}", 0.5)
-                    for i, lead in enumerate(
-                        [
-                            "name is ",
-                            "Name is ",
-                            "I'm ",
-                            "I am ",
-                            "This is ",
-                            "this is ",
-                            "Name ",
-                            "daughter ",
-                            "son ",
-                            "husband ",
-                            "wife ",
-                        ]
-                    )
-                ),
-            ],
-        ),
     ]
+    # Sign-off / introduction names are handled for both providers by
+    # base.signoff_name_spans (M5), not by a Presidio recogniser.
 
 
 CASE_SENSITIVE = re.MULTILINE | re.DOTALL  # Presidio's default adds IGNORECASE
-
-# One to three capitalised words, letters with accents allowed (Éloïse, Núñez).
-_NAME = r"[A-ZÀ-Þ][a-zß-ÿ'\-]+(?:\s[A-ZÀ-Þ][a-zß-ÿ'\-]+){1,2}"
 
 
 @lru_cache(maxsize=2)
@@ -214,6 +184,7 @@ class PresidioRedactor:
         spans = [
             Span(r.start, r.end, PRESIDIO_ENTITY_TAGS.get(r.entity_type, "PII")) for r in results
         ]
+        spans += signoff_name_spans(text)
         merged = merge_spans(spans + propagate_names(text, spans))
         return RedactionResult(
             text=apply_spans(text, merged),

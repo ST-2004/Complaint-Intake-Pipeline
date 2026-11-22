@@ -18,8 +18,8 @@ entire environment in any subscription that allows it.
 | **M1** PII detection and enrichment | Done: Azure and Presidio providers, 0 / 28 seeded values leaked on both ([details](docs/pii-redaction.md)) |
 | **M2** LLM classifier | Done: 10/10 schema-valid on the first attempt, prompt version recorded ([details](docs/classifier.md)) |
 | **M3** Rules, routing, audit log and review | Done: end-to-end pipeline, rules R1-R8, review queue, 0/28 seeded PII in the database ([details](docs/rules-and-review.md)) |
-| **M4** Dataset and evaluation harness | Harness and data done, tested offline; **baseline run on Azure pending** ([details](docs/evaluation.md)) |
-| M5 Hardening | not started |
+| **M4** Dataset and evaluation harness | Done: held-out baseline macro-F1 0.92, red-team 20/20, 1/23 PII leak ([details](docs/evaluation.md)) |
+| M5 Hardening | Round 1 fixes in (prompt `classify_v2`, sign-off redaction); dev run pending ([details](docs/hardening.md)) |
 | M6 Docs, CI and showcase | not started |
 
 ## Quick start
