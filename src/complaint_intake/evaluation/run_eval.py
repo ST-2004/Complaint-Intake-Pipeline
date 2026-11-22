@@ -68,8 +68,22 @@ def git_commit() -> str:
             text=True,
             check=True,
         ).stdout.strip()
+        # Ignore the harness's own outputs: a dev run writes a report, which must not
+        # make the following held-out run look like it ran on uncommitted code.
         dirty = subprocess.run(
-            ["git", "status", "--porcelain"], cwd=ROOT, capture_output=True, text=True, check=True
+            [
+                "git",
+                "status",
+                "--porcelain",
+                "--",
+                ".",
+                ":(exclude)eval/reports",
+                ":(exclude)eval/.cache",
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
         ).stdout.strip()
         return sha + ("-dirty" if dirty else "")
     except (OSError, subprocess.CalledProcessError):
@@ -854,11 +868,13 @@ def run(args: argparse.Namespace) -> tuple[dict, Path]:
         json.loads(baseline_path.read_text(encoding="utf-8")) if baseline_path.exists() else None
     )
     data = _jsonable(report)
-    (out_dir / f"{stem}.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
+    as_json = json.dumps(data, indent=2) + "\n"  # one trailing newline (end-of-file hook)
+    (out_dir / f"{stem}.json").write_text(as_json, encoding="utf-8", newline="\n")
     md_path = out_dir / f"{stem}.md"
-    md_path.write_text(render_markdown(report, baseline), encoding="utf-8")
+    md_text = render_markdown(report, baseline).rstrip("\n") + "\n"
+    md_path.write_text(md_text, encoding="utf-8", newline="\n")
     if args.save_baseline:
-        baseline_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        baseline_path.write_text(as_json, encoding="utf-8", newline="\n")
     return report, md_path
 
 
