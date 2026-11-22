@@ -16,10 +16,16 @@ invariant at the end, so a future rule cannot break it silently.
 | R6   | OTHER_UNCLEAR, too short, noise, empty, too long  | review                         |
 | R7   | model output invalid after retry, blocked, failed | review (no model result)       |
 | R8   | PII redaction failed                              | review; model never called     |
+| R9   | largest $ amount > 1,000 / >= 10 (rules_v2)       | severity >= HIGH / >= MEDIUM   |
+| R10  | problem open > 30 days (rules_v2)                 | severity >= HIGH               |
+| R11  | vulnerability: bereavement, age, disability,      | severity >= HIGH               |
+|      | unable to afford essentials (rules_v2)            |                                |
+R9-R11 raise severity only; they do not by themselves require a human.
 """
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from complaint_intake.enrichment import Signals
@@ -48,6 +54,60 @@ class RulesOutcome:
     review_reasons: tuple[str, ...]
     fired: tuple[str, ...]
     rules_version: str
+
+
+_MONEY = re.compile(
+    # The cents are part of the captured group: "$1,000.50" must count as > $1,000.
+    r"\$\s?((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?)"  # $1,850  $45  $15.95
+    r"|\b((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?)\s?dollars\b",  # 1850 dollars
+    re.IGNORECASE,
+)
+_NUMBER_WORDS = {
+    "a": 1,
+    "an": 1,
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+    "eleven": 11,
+    "twelve": 12,
+    "several": 3,
+}
+_COUNT = r"(\d+|a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|several)"
+_UNIT = r"(day|week|month)s?"
+_DURATION = re.compile(
+    rf"\b{_COUNT}\s+{_UNIT}\s+ago\b"  # "six weeks ago"
+    rf"|\bfor\s+(?:the\s+(?:past|last)\s+)?{_COUNT}\s+{_UNIT}\b"  # "for the past 45 days"
+    rf"|\b(?:past|last)\s+{_COUNT}\s+{_UNIT}\b",  # "the last two months"
+    re.IGNORECASE,
+)
+_DAYS = {"day": 1, "week": 7, "month": 30}
+
+
+def largest_amount(text: str) -> float:
+    """Largest dollar amount stated in the text (0 if none)."""
+    best = 0.0
+    for m in _MONEY.finditer(text):
+        raw = (m.group(1) or m.group(2) or "0").replace(",", "")
+        best = max(best, float(raw))
+    return best
+
+
+def longest_open_days(text: str) -> int:
+    """Longest 'N days/weeks/months ago | for N ...' in days (0 if none). Years ignored."""
+    best = 0
+    for m in _DURATION.finditer(text):
+        groups = [g for g in m.groups() if g]
+        count, unit = groups[0].lower(), groups[1].lower()
+        n = int(count) if count.isdigit() else _NUMBER_WORDS[count]
+        best = max(best, n * _DAYS[unit])
+    return best
 
 
 def _max(a: Severity | None, b: Severity) -> Severity:
@@ -100,6 +160,28 @@ def apply_rules(ctx: RuleContext, config: RulesConfig) -> RulesOutcome:
         fire("R6", "R6_category_unclear")
 
     text = ctx.redacted_text or ""
+
+    # R9-R11 (rules_v2): severity floors from facts code can check reliably. They
+    # raise severity only; HIGH on its own does not require a human.
+    def floor(rule: str, level: Severity) -> None:
+        nonlocal severity
+        if severity is None or SEVERITY_ORDER.index(level) > SEVERITY_ORDER.index(severity):
+            severity = level
+            if rule not in fired:
+                fired.append(rule)
+
+    if text:
+        amount = largest_amount(text)
+        if config.money_high_over is not None and amount > config.money_high_over:
+            floor("R9", Severity.HIGH)
+        elif config.money_medium_from is not None and amount >= config.money_medium_from:
+            floor("R9", Severity.MEDIUM)
+        days = longest_open_days(text)
+        if config.duration_high_over_days is not None and days > config.duration_high_over_days:
+            floor("R10", Severity.HIGH)
+        if any(p.search(text) for p in config.vulnerability):
+            floor("R11", Severity.HIGH)
+
     if text and config.regulatory.search(text):
         fire("R3", "R3_regulatory_language")
 

@@ -35,21 +35,77 @@ Not changed on purpose:
 
 Offline checks after round 1: 623 unit tests pass; Presidio leaks 0/32 on dev and 0/28 on the M1 samples.
 
-## How to run round 1 (your steps)
+## Round 1 result (dev, commit `c797639`, `classify_v2`, `rules_v1`)
+
+Fixed: PII leaks 2 -> **0**; category 0.98 -> **1.00**; review precision 0.68 ->
+**0.86**; severity accuracy 0.62 -> **0.74**. Held: review recall 1.00, red-team 20/20.
+
+**Regressed: HIGH + CRITICAL recall 0.89 -> 0.78 (14/18).** The strict distress
+wording made the model cautious about severity in general: 11/50 cases now sit
+*below* their label (was 3/30 on held-out). The four HIGH misses each break a
+threshold that was already written in the prompt:
+
+| Case | Fact | Guide | Model |
+|---|---|---|---|
+| lm-02 | $1,850 taken twice | > ~$1,000 -> HIGH | MEDIUM |
+| ca-03 | dispute open six weeks | > a month -> HIGH | MEDIUM |
+| pd-03 | no reply for 45 days | > a month -> HIGH | MEDIUM |
+| aa-06 | bereavement, executor | vulnerability -> HIGH | MEDIUM |
+
+Lesson: the model does not apply numeric thresholds reliably even when told them.
+Facts code can check should be checked by code (P3).
+
+## Round 2 changes (`classify_v3`, `rules_v2`)
+
+| Change | Targets | Why this and not more prompt tuning |
+|---|---|---|
+| **R9 money floor**: largest stated $ amount > 1,000 -> at least HIGH; >= 10 -> at least MEDIUM | lm-02, ca-08, fe-03 | Deterministic, auditable, cannot drift with the model |
+| **R10 duration floor**: problem dated more than a month back -> at least HIGH (years ignored: "a customer for 20 years" is not an open problem) | ca-03, pd-03 | Same |
+| **R11 vulnerability floor**: bereavement, older age, disability, unable to afford essentials -> at least HIGH | aa-06 | Same; and it fixes an inconsistency: `rules_v1` sent "can't feed / homeless" to R4 (CRITICAL), but the guide says HIGH without despair. Those terms moved from R4 to R11. |
+| **`classify_v3` CRITICAL examples**: another customer's statement received, staff revealing details, an email exposing other customers, a lawyer already handling it (a threat to act later is not enough) | pd-01, pd-02, lm-08 (CRITICAL rated HIGH) | Needs judgement; code cannot tell "has started" from "will" reliably |
+| **`classify_v3` fee tie-break** from the guide: FEES_CHARGES only when getting the fee back is all the customer asks for | cf-06 (CARD vs FEES flipped under all caps) | The pair was genuinely ambiguous; the guide had a ruling the prompt lacked |
+| **Guide v1.1**: "30 days or more" -> "more than a month" | consistency | The label for "trying for a month" (MEDIUM) already read it this way; no label changed |
+
+R9-R11 raise severity only and never require a human on their own, so they cannot
+lower review recall. The invariant test now runs against both rules versions.
+
+**Offline check on dev (no Azure):** applying R9-R11 alone to the 50 dev cases
+pushes **0** cases above their label, and covers all four round-1 HIGH misses plus
+two of the four MEDIUM -> LOW cases (db-05 and sc-07 have no amount or duration, so
+they stay with the model). Caveat: the rules and the labels both come from the same
+labelling guide written by the same person, so agreement on dev is partly built in.
+The held-out run is the honest test.
+
+Found while building round 2: `largest_amount` first read "$15.95" as 15 (the cents
+were outside the captured group), which would misjudge boundary amounts such as
+"$1,000.50". Fixed, with a regression test.
+
+Not changed, still open: R4 turns the model's `distress_suspected` into CRITICAL, and
+the model still sets it for "can't buy groceries" (aa-01) and "stranded abroad"
+(ca-04). Over-escalation, the safe direction; revisit only if round 2 shows more.
+
+## How to run (your steps)
 
 ```powershell
 python tasks.py infra-up
 python tasks.py env
-python tasks.py eval          # dev only. Compares with baseline_dev.json automatically.
-# Paste the headline here. Do NOT run the held-out set yet.
+python tasks.py eval          # dev only; compares with baseline_dev.json (M4)
+# Paste the headline here. Do NOT run the held-out set until dev looks right.
 python tasks.py infra-down
 ```
 
 ## Results
 
-| Measure | Baseline dev | Round 1 dev | Final held-out |
-|---|---|---|---|
-| _to fill from the reports_ | | | |
+| Measure | M4 baseline dev | Round 1 dev | Round 2 dev | Final held-out |
+|---|---|---|---|---|
+| Category macro-F1 | 0.98 | 1.00 | | |
+| Severity accuracy | 0.62 | 0.74 | | |
+| HIGH + CRITICAL recall | 0.89 | 0.78 | | |
+| Review recall | 1.00 | 1.00 | | |
+| Review precision | 0.68 | 0.86 | | |
+| PII leaks | 2 | 0 | | |
+| Red-team | 20/20 | 20/20 | | |
+| Counterfactual | 9/10 | 9/10 | | |
 
 ## Platform content safety (plan M5 item)
 

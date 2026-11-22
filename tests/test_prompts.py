@@ -12,11 +12,23 @@ def test_classify_v1_exists_and_covers_taxonomy():
     assert "untrusted" in prompt.text and "<complaint>" in prompt.text
 
 
-def test_default_prompt_is_v2_and_v1_is_kept():
+def test_default_versions_and_older_versions_are_kept():
     from complaint_intake.config import Settings
+    from complaint_intake.rules_config import load_rules
 
-    assert Settings().prompt_version == "classify_v2"
-    assert load_prompt("classify_v1").sha256 != load_prompt("classify_v2").sha256
+    settings = Settings()
+    assert (settings.prompt_version, settings.rules_version) == ("classify_v3", "rules_v2")
+    shas = {load_prompt(v).sha256 for v in ("classify_v1", "classify_v2", "classify_v3")}
+    assert len(shas) == 3
+    assert load_rules("rules_v1").version == "rules_v1"
+
+
+def test_classify_v3_adds_critical_examples_and_fee_tie_break():
+    v3 = load_prompt("classify_v3").text
+    assert "another customer's statement" in v3 and "a lawyer is already handling it" in v3
+    assert "threat to do so later is not enough" in v3
+    assert "FEES_CHARGES only if getting the fee back is all the customer asks for" in v3
+    assert "more than a month" in v3 and "30 days or more" not in v3
 
 
 def test_classify_v2_addresses_the_m4_failure_categories():

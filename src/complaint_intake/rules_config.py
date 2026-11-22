@@ -21,6 +21,11 @@ class RulesConfig:
     regulatory: re.Pattern[str]
     distress: re.Pattern[str]
     injection: tuple[re.Pattern[str], ...]
+    # rules_v2 severity floors (None = rule not present in this version)
+    money_high_over: float | None = None
+    money_medium_from: float | None = None
+    duration_high_over_days: int | None = None
+    vulnerability: tuple[re.Pattern[str], ...] = ()
 
 
 def _terms_regex(terms: list[str]) -> re.Pattern[str]:
@@ -31,7 +36,18 @@ def _terms_regex(terms: list[str]) -> re.Pattern[str]:
 
 def parse_rules(data: dict) -> RulesConfig:
     inp = data["input"]
+    money = data.get("r9_money", {})
+    duration = data.get("r10_duration", {})
+    vuln = data.get("r11_vulnerability", {})
+    vulnerability: list[re.Pattern[str]] = []
+    if vuln.get("terms"):
+        vulnerability.append(_terms_regex(vuln["terms"]))
+    vulnerability.extend(re.compile(p, re.IGNORECASE) for p in vuln.get("patterns", []))
     return RulesConfig(
+        money_high_over=money.get("high_over"),
+        money_medium_from=money.get("medium_from"),
+        duration_high_over_days=duration.get("high_over_days"),
+        vulnerability=tuple(vulnerability),
         version=data["version"],
         min_chars=int(inp["min_chars"]),
         min_words=int(inp["min_words"]),

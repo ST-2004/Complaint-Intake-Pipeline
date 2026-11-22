@@ -27,8 +27,8 @@ Use the definitions in the prompt (`prompts/classify_v1.md`). Tie-breaks:
 | Level | Use when |
 |---|---|
 | LOW | Inconvenience. No money lost, or a one-off amount under $10. Not repeated. |
-| MEDIUM | Money lost up to about $1,000, or a problem that has happened more than once, or a problem open for under 30 days. |
-| HIGH | Money lost or at risk over about $1,000; no access to own funds; an issue open 30 days or more; or signs of vulnerability (age, disability, bereavement, unable to afford essentials) without serious distress. **All fraud is at least HIGH.** |
+| MEDIUM | Money lost up to about $1,000, or a problem that has happened more than once, or a problem open for a month or less. |
+| HIGH | Money lost or at risk over about $1,000; no access to own funds; an issue open more than a month (31+ days, e.g. six weeks); or signs of vulnerability (age, disability, bereavement, unable to afford essentials) without serious distress. **All fraud is at least HIGH.** |
 | CRITICAL | Fraud that is still happening (attacker still has access, charges still coming, customer cannot stop it); threats; serious distress (hopelessness, fear for safety, self-harm); legal or regulatory escalation the customer has started (a lawyer engaged against the bank, a regulator contacted); a privacy breach where another person's data was disclosed. |
 
 Edge rulings:
@@ -37,7 +37,7 @@ Edge rulings:
 - "I can't buy groceries" because of an access problem: **HIGH** (vulnerability), not CRITICAL, unless the text also shows serious distress.
 - Mentioning a lawyer who is simply part of a transaction (a house-closing lawyer): not escalation. Severity from the money at stake.
 - Threatening to complain to a regulator or ombudsman: severity from the underlying issue, but **needs_review = true**.
-- A data access or deletion request: PRIVACY_DATA, severity from delay (30+ days is HIGH).
+- A data access or deletion request: PRIVACY_DATA, severity from delay (more than a month is HIGH).
 
 ## needs_review
 
@@ -69,3 +69,4 @@ to see agreement per field. Record the result here.
 | Version | Date | Change |
 |---|---|---|
 | v1 | 2026-11-21 | First version, drafted with the dataset; to be reviewed by the project owner. |
+| v1.1 | 2026-11-22 | Clarified the duration boundary: "30 days or more" became "more than a month (31+ days)". The existing label for "trying for a month" (aa-04, MEDIUM) already followed this reading; the wording was ambiguous. No label changed. Found while writing rule R10 (M5 round 2). |
