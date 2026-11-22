@@ -10,8 +10,9 @@
         --category CARD_ISSUE --severity MEDIUM --reason "card decline, not fraud"
     python -m complaint_intake.cli stats
 
-Everything shown is redacted. Triage needs the Azure environment (infra-up + env);
-review and stats work offline on the local database (DB_PATH).
+Everything shown is redacted. Triage needs the Azure environment (infra-up + env),
+or --offline (Presidio + MOCK keyword model, no Azure, no cost: for demos only).
+Review and stats work offline on the local database (DB_PATH).
 """
 
 from __future__ import annotations
@@ -40,9 +41,19 @@ def _print_decision(decision) -> None:
         print(f"  error: {d['error_reason']}")
 
 
-def cmd_triage(args, settings: Settings) -> int:
-    from complaint_intake.pipeline import build_pipeline
+MOCK_NOTE = "[offline: Presidio + MOCK keyword model; labels are a stub, not the LLM]"
 
+
+def _pipeline(args, settings: Settings):
+    from complaint_intake.pipeline import build_offline_pipeline, build_pipeline
+
+    if args.offline:
+        print(MOCK_NOTE)
+        return build_offline_pipeline(settings)
+    return build_pipeline(settings)
+
+
+def cmd_triage(args, settings: Settings) -> int:
     if args.file:
         text = Path(args.file).read_text(encoding="utf-8")
     elif args.text:
@@ -50,7 +61,7 @@ def cmd_triage(args, settings: Settings) -> int:
     else:
         print("Paste the complaint, then Ctrl+Z Enter (Windows) or Ctrl+D (macOS/Linux):")
         text = sys.stdin.read()
-    decision = build_pipeline(settings).triage(text)
+    decision = _pipeline(args, settings).triage(text)
     if args.json:
         print(json.dumps(decision.to_dict(), indent=2))
     else:
@@ -59,9 +70,7 @@ def cmd_triage(args, settings: Settings) -> int:
 
 
 def cmd_batch(args, settings: Settings) -> int:
-    from complaint_intake.pipeline import build_pipeline
-
-    pipeline = build_pipeline(settings)
+    pipeline = _pipeline(args, settings)
     count = review = 0
     for line in Path(args.path).read_text(encoding="utf-8").splitlines():
         if not line.strip():
@@ -132,10 +141,12 @@ def build_parser() -> argparse.ArgumentParser:
     t.add_argument("text", nargs="*")
     t.add_argument("--file")
     t.add_argument("--json", action="store_true", help="print the full output record")
+    t.add_argument("--offline", action="store_true", help="no Azure: Presidio + MOCK model")
     t.set_defaults(func=cmd_triage)
 
     b = sub.add_parser("batch", help="triage every line of a JSONL file with a 'text' field")
     b.add_argument("path")
+    b.add_argument("--offline", action="store_true", help="no Azure: Presidio + MOCK model")
     b.set_defaults(func=cmd_batch)
 
     r = sub.add_parser("review", help="work the human-review queue")

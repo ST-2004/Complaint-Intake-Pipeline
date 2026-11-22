@@ -1,6 +1,6 @@
 [project]
 name = "complaint-intake"
-version = "0.1.0"
+version = "1.0.0"
 description = "AI-assisted bank complaint triage on Azure with privacy by design (synthetic data only)."
 readme = "README.md"
 license = "MIT"

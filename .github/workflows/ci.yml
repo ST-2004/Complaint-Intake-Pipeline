@@ -1,0 +1,86 @@
+# CI: everything that can be checked without Azure. No cloud credentials, no
+# secrets and no cost: unit tests use fakes, the evaluation runs offline
+# (Presidio + MOCK model), and Terraform is validated, never applied.
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Lint, tests, offline eval, secret scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14" # the version requirements.lock was resolved on
+          cache: pip
+          cache-dependency-path: requirements.lock
+
+      - name: Install pinned dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.lock
+          pip install --no-deps -e .
+
+      - name: Ruff (lint + format check)
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Unit tests (no cloud)
+        run: pytest
+
+      - name: Offline evaluation with PII gate
+        # Fails the build if any seeded PII reaches the model input or the
+        # database. The MOCK model's labels are not a quality measure.
+        run: >
+          python -m complaint_intake.evaluation.run_eval
+          --offline --fail-on-pii-leak --out "$RUNNER_TEMP/eval"
+
+      - name: Upload offline eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: offline-eval-report
+          path: ${{ runner.temp }}/eval/
+          if-no-files-found: ignore
+
+      - name: Repository hygiene and secret scan (pre-commit)
+        # terraform fmt runs in the terraform job.
+        env:
+          SKIP: terraform-fmt
+        run: pre-commit run --all-files --show-diff-on-failure
+
+  terraform:
+    name: Terraform fmt + validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.12.2"
+
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false -input=false
+      - run: terraform validate

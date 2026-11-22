@@ -232,3 +232,30 @@ def build_pipeline(settings, *, store: Store | None = None) -> Pipeline:
         rules=load_rules(settings.rules_version),
         store=store if store is not None else Store(settings.db_path),
     )
+
+
+def build_offline_pipeline(settings, *, store: Store | None = None) -> Pipeline:
+    """Same pipeline, no Azure: Presidio redaction, no enrichment, MOCK keyword model.
+
+    For the demo and CI only. The rules, routing, audit log and review queue are
+    the real ones; the classification is a keyword stub (mock_model.py) and is
+    not a measure of the system's quality.
+    """
+    from complaint_intake.classifier import get_classifier
+    from complaint_intake.config import PiiProvider
+    from complaint_intake.enrichment import NullEnricher
+    from complaint_intake.mock_model import MockModelClient
+    from complaint_intake.redaction import get_redactor
+    from complaint_intake.rules_config import load_rules
+
+    client = MockModelClient()
+    settings = settings.model_copy(
+        update={"pii_provider": PiiProvider.PRESIDIO, "model_deployment": client.deployment}
+    )
+    return Pipeline(
+        redactor=get_redactor(settings),
+        enricher=NullEnricher(),
+        classifier=get_classifier(settings, client=client),
+        rules=load_rules(settings.rules_version),
+        store=store if store is not None else Store(settings.db_path),
+    )

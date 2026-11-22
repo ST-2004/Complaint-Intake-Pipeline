@@ -17,6 +17,7 @@ Tasks:
   review      human-review queue: review list | show <id> | approve <id> --reviewer x |
               override <id> --reviewer x --category C --severity S --reason "..."
               (stats: python -m complaint_intake.cli stats)
+  demo        5 complaints -> review queue -> stats, offline by default [--live]
   test        unit tests (no cloud)
   lint        ruff + terraform fmt -check + terraform validate
   fmt         auto-format Python and Terraform
@@ -139,6 +140,31 @@ def task_eval(args: list[str]) -> None:
     sh(venv_python(), "-m", "complaint_intake.evaluation.run_eval", *args)
 
 
+DEMO_DB = ROOT / "demo.db"  # git-ignored (*.db); separate from triage.db
+
+
+def task_demo(args: list[str]) -> None:
+    """Triage 5 demo complaints, then show the review queue and team-lead stats."""
+    live = "--live" in args
+    env = dict(os.environ, DB_PATH=str(DEMO_DB))
+    DEMO_DB.unlink(missing_ok=True)  # fresh queue every run
+    cli = [venv_python(), "-m", "complaint_intake.cli"]
+    mode = [] if live else ["--offline"]
+    print("== 1. Triage five synthetic complaints ==")
+    sh(*cli, "batch", "data/samples/demo_complaints.jsonl", *mode, env=env)
+    print("\n== 2. What a reviewer sees: the human-review queue (redacted) ==")
+    sh(*cli, "review", "list", env=env)
+    print("\n== 3. What a team lead sees ==")
+    sh(*cli, "stats", env=env)
+    print(
+        f"\nDemo database: {DEMO_DB.name}. Try, with DB_PATH={DEMO_DB.name}:\n"
+        "  python -m complaint_intake.cli review show <case_id>\n"
+        "  python -m complaint_intake.cli review approve <case_id> --reviewer you"
+    )
+    if not live:
+        print("Offline mode: labels come from a keyword stub. Use --live for the real model.")
+
+
 def task_test(args: list[str]) -> None:
     sh(venv_python(), "-m", "pytest", *args)
 
@@ -218,6 +244,7 @@ TASKS = {
     "eval": task_eval,
     "run": task_run,
     "review": task_review,
+    "demo": task_demo,
     "test": task_test,
     "lint": task_lint,
     "fmt": task_fmt,

@@ -894,14 +894,35 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--no-cache", action="store_true", help="do not reuse redaction/enrichment")
     p.add_argument("--save-baseline", action="store_true")
     p.add_argument("--out", default=str(REPORTS))
+    p.add_argument(
+        "--fail-on-pii-leak",
+        action="store_true",
+        help="exit 1 if any seeded PII reaches the model input or the database (CI gate)",
+    )
     args = p.parse_args(argv)
 
     if args.set == "heldout" and not args.save_baseline:
         print("Note: held-out set. Use it at milestone ends only; tune on dev.")
     report, md_path = run(args)
     print(f"\nReport: {md_path.relative_to(ROOT) if md_path.is_relative_to(ROOT) else md_path}")
-    for key, value in headline(report).items():
+    heads = headline(report)
+    for key, value in heads.items():
         print(f"  {key:<28} {_fmt(value)}")
+    if args.fail_on_pii_leak:
+        return pii_gate(heads)
+    return 0
+
+
+def pii_gate(heads: dict) -> int:
+    """0 if no seeded PII leaked anywhere; 1 (with a message) otherwise."""
+    leaks = {k: heads.get(k) for k in ("pii_leaks_model_input", "pii_leaks_database")}
+    if any(v is None for v in leaks.values()):
+        print(f"\nPII GATE: FAILED, leak counts missing from the report: {leaks}")
+        return 1
+    if any(leaks.values()):
+        print(f"\nPII GATE: FAILED, {leaks}")
+        return 1
+    print("\nPII GATE: passed (0 seeded PII values in model input or database)")
     return 0
 
 
