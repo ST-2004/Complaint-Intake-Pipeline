@@ -19,7 +19,7 @@ entire environment in any subscription that allows it.
 | **M2** LLM classifier | Done: 10/10 schema-valid on the first attempt, prompt version recorded ([details](docs/classifier.md)) |
 | **M3** Rules, routing, audit log and review | Done: end-to-end pipeline, rules R1-R8, review queue, 0/28 seeded PII in the database ([details](docs/rules-and-review.md)) |
 | **M4** Dataset and evaluation harness | Done: held-out baseline macro-F1 0.92, red-team 20/20, 1/23 PII leak ([details](docs/evaluation.md)) |
-| M5 Hardening | Three tuning rounds on dev (severity 0.62 -> 0.92, HIGH+CRITICAL recall 1.00, PII 0); final held-out run pending ([details](docs/hardening.md)) |
+| **M5** Hardening | Done. Held-out: PII leaks 1 -> 0, review recall 0.90 -> 1.00, severity 0.63 -> 0.80; HIGH+CRITICAL recall 0.82 below target, cause documented ([details](docs/hardening.md)) |
 | M6 Docs, CI and showcase | not started |
 
 ## Quick start

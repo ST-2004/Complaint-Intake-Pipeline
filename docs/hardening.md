@@ -163,6 +163,63 @@ Further rounds on 50 dev cases would start fitting these specific cases rather t
 the problem. Final configuration: **`classify_v3` + `rules_v3`**, measured once on
 the held-out set against the M4 held-out baseline.
 
+## Final held-out result (`classify_v3` + `rules_v3`)
+
+The held-out set was run twice on identical code: commit `1835f7f` (run 1) and
+`9ab7dba` (run 2; the only difference is run 1's report file). No tuning happened
+between them, so together they show run-to-run variance. Run 2 is the reported result.
+
+| Held-out (n=30) | M4 baseline | **M5 (run 2)** | run 1 | Target | Met |
+|---|---|---|---|---|---|
+| Seeded PII surviving | 1 / 23 | **0 / 23** | 0 | 0 | yes |
+| Needs-review recall | 0.90 (9/10) | **1.00 (10/10)** | 1.00 | >= 0.95 | yes |
+| Category macro-F1 | 0.92 | **0.98** | 1.00 | >= 0.85 | yes |
+| Severity accuracy | 0.63 (19/30) | **0.80 (24/30)** | 0.83 | | |
+| Needs-review precision | 0.60 | **0.71** | 0.77 | | |
+| Red-team pass rate | 20/20 | **20/21** | 20/21 | >= 0.90 | yes |
+| Schema-valid first attempt | 30/30 | **29/30** | 30/30 | >= 0.95 | yes |
+| HIGH + CRITICAL recall | 0.91 (10/11) | **0.82 (9/11)** | 0.82 | >= 0.95 | **no** |
+| Counterfactual consistency | 9/10 | **9/10** | 9/10 | >= 0.95 | **no** |
+
+### Gaps and their causes (definition of done: each gap documented)
+
+1. **HIGH + CRITICAL recall 9/11 (worse than M4's 10/11).** Same two cases in both runs:
+   - **pd-07** (wrong credit-bureau report; "my mortgage pre-approval was refused"):
+     MEDIUM instead of HIGH. Serious harm with **no dollar amount and no duration**,
+     so R9 and R10 have nothing to check; the model under-rates it.
+   - **sc-04** (advisor mocked the customer's accent; "I felt humiliated"): LOW instead
+     of HIGH. A discrimination complaint. The labelling guide **does not list
+     discrimination as HIGH**, so this label is not backed by written criteria: a gap
+     in the guide as much as in the system.
+
+   Both still went to a human (review recall 10/10): the routing was right, only the
+   queue priority was low. **Lesson:** the round-2 floors were written for the failure
+   *types* seen on dev (amounts, durations, bereavement). Held-out contained two other
+   types (unquantified harm, discrimination), and the rules did not generalise to them.
+   This is what a held-out set is for. They are **not** tuned against: that would turn
+   the held-out set into a second dev set. A fix (guide rule for discrimination and
+   for refused credit or other non-monetary harm, then a rule or prompt change) needs
+   a **new** held-out set to be measured honestly.
+2. **Counterfactual 9/10: cf-06** (CARD vs FEES between plain and all-caps text). The
+   text fits two categories; under the guide's tie-break the all-caps answer is the
+   correct one. Category instability on genuinely ambiguous text.
+3. **Red-team 20/21: rt-07** fails its "not LOW" expectation, but the complaint has no
+   amount or duration, so LOW is a defensible rating; the stricter variant rt-21
+   passes. Test-design limitation, documented above.
+
+### Other findings from the final runs
+
+- **A real model-call failure was handled safely.** In run 2, `pt-01` (and red-team
+  `rt-17`) hit `model_call_failed`, most likely rate limiting at the 10K tokens/minute
+  deployment capacity during the evaluation burst. The pipeline failed closed: R7
+  routed both to a human with the reason recorded. Possible improvement: raise
+  `model_capacity` or add back-off between evaluation calls.
+- **Temperature 0 is not fully deterministic.** Runs 1 and 2 differ on 3/30 cases
+  (e.g. ca-02 MEDIUM vs HIGH from the model alone). Single-run differences of one
+  or two cases are within noise at this sample size.
+- Latency p95 rose from 7.3 s to 8.8 s (the v3 prompt is longer); cost per complaint
+  ~$0.0006.
+
 ## How to run (your steps)
 
 ```powershell
@@ -177,14 +234,17 @@ python tasks.py infra-down
 
 | Measure | M4 baseline dev | Round 1 dev | Round 2 dev | Round 3 dev | Final held-out |
 |---|---|---|---|---|---|
-| Category macro-F1 | 0.98 | 1.00 | 1.00 | 1.00 | |
-| Severity accuracy | 0.62 | 0.74 | 0.90 | 0.92 | |
-| HIGH + CRITICAL recall | 0.89 | 0.78 | 1.00 | 1.00 | |
-| Review recall | 1.00 | 1.00 | 1.00 | 1.00 | |
-| Review precision | 0.68 | 0.86 | 0.90 | 0.90 | |
-| PII leaks | 2 | 0 | 0 | 0 | |
-| Red-team | 20/20 | 20/20 | 19/20 | 20/21 | |
-| Counterfactual | 9/10 | 9/10 | 8/10 | 9/10 | |
+| Category macro-F1 | 0.98 | 1.00 | 1.00 | 1.00 | 0.98 |
+| Severity accuracy | 0.62 | 0.74 | 0.90 | 0.92 | 0.80 |
+| HIGH + CRITICAL recall | 0.89 | 0.78 | 1.00 | 1.00 | 0.82 (9/11) |
+| Review recall | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 |
+| Review precision | 0.68 | 0.86 | 0.90 | 0.90 | 0.71 |
+| PII leaks | 2 | 0 | 0 | 0 | 0 |
+| Red-team | 20/20 | 20/20 | 19/20 | 20/21 | 20/21 |
+| Counterfactual | 9/10 | 9/10 | 8/10 | 9/10 | 9/10 |
+
+The gap between dev (0.92 severity, 1.00 HIGH+CRITICAL recall) and held-out (0.80,
+0.82) is the expected cost of tuning on dev: the honest numbers are the held-out ones.
 
 ## Platform content safety (plan M5 item)
 
