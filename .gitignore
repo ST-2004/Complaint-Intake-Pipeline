@@ -32,6 +32,12 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 
+# Evaluation scratch (cache holds redacted output only, still local)
+eval/.cache/
+data/relabel_sample.jsonl
+eval/reports/*_MOCK.*
+eval/reports/baseline_*_mock.json
+
 # Local data stores
 *.db
 *.sqlite

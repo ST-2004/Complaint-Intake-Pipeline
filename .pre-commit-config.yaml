@@ -24,7 +24,8 @@ repos:
     hooks:
       - id: detect-secrets
         args: ["--baseline", ".secrets.baseline"]
-        exclude: (\.terraform\.lock\.hcl|requirements\.lock)$
+        # Lock files and the dataset manifest hold checksums, not secrets.
+        exclude: (\.terraform\.lock\.hcl|requirements\.lock|data/synthetic/manifest\.json)$
 
   - repo: local
     hooks:

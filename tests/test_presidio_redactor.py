@@ -31,6 +31,37 @@ def test_canadian_recognizers(redactor):
     assert "77 Queen Street" not in result.text
 
 
+@pytest.mark.parametrize(
+    "text,must_survive",
+    [
+        ("You charged me a $15.95 monthly fee I never agreed to.", "monthly fee"),
+        ("I am trying to open a chequing account at the branch.", "trying to open"),
+        ("This is the third month in a row.", "the third month"),
+    ],
+)
+def test_case_sensitive_patterns_do_not_eat_ordinary_words(redactor, text, must_survive):
+    # Regression: Presidio compiles with IGNORECASE by default, which made
+    # "[A-Z][a-z]+" match any word ("$15.95 monthly fee" became an ADDRESS).
+    assert must_survive in redactor.redact(text).text
+
+
+@pytest.mark.parametrize(
+    "text,name",
+    [
+        ("I've called five times. Aayush Stone", "Aayush Stone"),
+        ("The deposit is missing. Renée Boily, 416-555-0101", "Renée Boily"),
+        ("My name is Ekiya Gravel and my card was declined.", "Ekiya Gravel"),
+    ],
+)
+def test_sign_off_and_introduction_names(redactor, text, name):
+    assert name.split()[-1] not in redactor.redact(text).text
+
+
+@pytest.mark.parametrize("street", ["464 Amanda Crossroad", "2328 Figueroa Skyway Apt. 290"])
+def test_structural_street_addresses(redactor, street):
+    assert street.split()[1] not in redactor.redact(f"I moved to {street} last year.").text
+
+
 def test_invalid_sin_checksum_is_not_tagged_as_government_id(redactor):
     assert "GOVERNMENT_ID" not in redactor.redact("reference 123 456 789").categories
 

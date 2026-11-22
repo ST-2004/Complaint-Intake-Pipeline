@@ -29,6 +29,7 @@ dev = [
     "ruff==0.17.4",
     "pre-commit==4.7.0",
     "detect-secrets==1.5.0",
+    "faker==40.63.0",  # synthetic dataset generation (M4)
 ]
 
 [build-system]
@@ -52,6 +53,8 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "S105"]
+# Seeded, reproducible (non-cryptographic) randomness is the point of the generator.
+"src/complaint_intake/evaluation/dataset.py" = ["S311"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

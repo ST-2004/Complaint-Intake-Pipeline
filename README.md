@@ -18,7 +18,7 @@ entire environment in any subscription that allows it.
 | **M1** PII detection and enrichment | Done: Azure and Presidio providers, 0 / 28 seeded values leaked on both ([details](docs/pii-redaction.md)) |
 | **M2** LLM classifier | Done: 10/10 schema-valid on the first attempt, prompt version recorded ([details](docs/classifier.md)) |
 | **M3** Rules, routing, audit log and review | Done: end-to-end pipeline, rules R1-R8, review queue, 0/28 seeded PII in the database ([details](docs/rules-and-review.md)) |
-| M4 Dataset and evaluation harness | not started |
+| **M4** Dataset and evaluation harness | Harness and data done, tested offline; **baseline run on Azure pending** ([details](docs/evaluation.md)) |
 | M5 Hardening | not started |
 | M6 Docs, CI and showcase | not started |
 
@@ -47,6 +47,10 @@ python tasks.py infra-down         # terraform destroy + check nothing is left b
 New role assignments can take 5-10 minutes to work; if `smoke` returns 401/403 right
 after `infra-up`, wait and retry.
 
+Evaluation: `python tasks.py eval` (dev + red-team + counterfactual), `eval --set heldout
+--save-baseline` (the baseline), `eval --offline` (no Azure, mock model). See
+[docs/evaluation.md](docs/evaluation.md).
+
 Other tasks: `pii-check` (redact the seeded samples and report leaks; add
 `--provider presidio` to run fully offline), `classify-check` (redact, enrich and
 classify 10 labelled samples; needs the environment up), `test` (unit tests, no cloud), `lint`
@@ -71,9 +75,11 @@ src/complaint_intake config, auth, input_checks, redaction/ (Azure + Presidio),
                      pipeline, store (SQLite audit + review), cli, smoke, checks
 prompts/             versioned prompts (classify_v1.md)
 config/              versioned rules configuration (rules_v1.toml)
-data/                synthetic samples only (see data/README.md)
+data/                synthetic only: situations, generated dev/held-out sets, labelling guide
+eval/                red-team and counterfactual sets, reports/
 tests/               unit tests (offline) + integration tests (marked)
-docs/                cost-and-limits.md, pii-redaction.md, classifier.md, rules-and-review.md
+docs/                cost-and-limits.md, pii-redaction.md, classifier.md, rules-and-review.md,
+                     evaluation.md
 tasks.py             task runner
 ```
 

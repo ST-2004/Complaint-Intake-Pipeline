@@ -1,0 +1,13 @@
+{
+  "seed": 20261121,
+  "situations_sha256": "f25c8fa0c23ec1a3b17cd54f9e5a5d0d18ea19af290b59d9ba4d2649f87c0868",
+  "dev": {
+    "n": 50,
+    "sha256": "0adf5f177277eee161d8287c1713d731b08ca30a2c1cf60e0b9d785db2567004"
+  },
+  "heldout": {
+    "n": 30,
+    "sha256": "a82734faa8e533ad4e63bde081d7e495f1b68b08648eb02c92c757e3a21f60fa"
+  },
+  "note": "Synthetic data only. Regenerate with the same seed to reproduce exactly."
+}

@@ -10,6 +10,9 @@ Tasks:
   smoke       one call to the Language service and one to the model
   pii-check   redact the seeded samples and report leaks [--provider presidio] [--show] [--enrich]
   classify-check  redact + enrich + classify the 10 labelled samples [--show]
+  generate-data  rebuild data/synthetic/{dev,heldout}.jsonl from data/situations.jsonl (seeded)
+  eval        dev set + red-team + counterfactual, Markdown report in eval/reports/
+              [--set heldout] [--offline] [--save-baseline] [--limit N] [--no-cache]
   run         triage one complaint end to end: run "text" | run --file f.txt | run --json "text"
   review      human-review queue: review list | show <id> | approve <id> --reviewer x |
               override <id> --reviewer x --category C --severity S --reason "..."
@@ -128,6 +131,14 @@ def task_review(args: list[str]) -> None:
     sh(venv_python(), "-m", "complaint_intake.cli", "review", *(args or ["list"]))
 
 
+def task_generate_data(args: list[str]) -> None:
+    sh(venv_python(), "-m", "complaint_intake.evaluation.dataset", *args)
+
+
+def task_eval(args: list[str]) -> None:
+    sh(venv_python(), "-m", "complaint_intake.evaluation.run_eval", *args)
+
+
 def task_test(args: list[str]) -> None:
     sh(venv_python(), "-m", "pytest", *args)
 
@@ -203,6 +214,8 @@ TASKS = {
     "smoke": task_smoke,
     "pii-check": task_pii_check,
     "classify-check": task_classify_check,
+    "generate-data": task_generate_data,
+    "eval": task_eval,
     "run": task_run,
     "review": task_review,
     "test": task_test,

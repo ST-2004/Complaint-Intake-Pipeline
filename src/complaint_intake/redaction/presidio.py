@@ -9,6 +9,7 @@ a spaCy model; the small model is the default and is weaker than Azure.
 from __future__ import annotations
 
 import logging
+import re
 from functools import lru_cache
 
 from complaint_intake.redaction.base import (
@@ -30,6 +31,7 @@ from complaint_intake.redaction.base import (
 
 PRESIDIO_ENTITY_TAGS: dict[str, str] = {
     "PERSON": PERSON,
+    "PERSON_INTRO": PERSON,
     "PHONE_NUMBER": PHONE_NUMBER,
     "EMAIL_ADDRESS": EMAIL,
     "LOCATION": ADDRESS,
@@ -91,24 +93,76 @@ def _custom_recognizers():
         ),
         PatternRecognizer(
             supported_entity="STREET_ADDRESS",
+            # Presidio compiles patterns with IGNORECASE by default, which would turn
+            # "[A-Z][a-z]+" into "any word" ("$15.95 monthly fee" -> address). Case matters.
+            global_regex_flags=CASE_SENSITIVE,
+            # Structural, not a suffix allowlist: street suffixes run to hundreds
+            # ("Crossroad", "Stravenue", "Causeway"). House number + 1-3 capitalised
+            # words + optional unit. Over-matching ("12 Main Things") is harmless.
             patterns=[
                 Pattern(
                     "street",
-                    r"\b\d{1,6}\s+(?:[A-Z][a-z]+\s+){1,3}"
-                    r"(?:Street|St|Avenue|Ave|Road|Rd|Crescent|Cres|Drive|Dr|Boulevard|Blvd"
-                    r"|Lane|Ln|Court|Ct|Way|Place|Pl|Terrace|Trail|Parkway)\b\.?",
-                    0.6,
+                    r"\b\d{1,6}\s+(?:[A-Z][a-z]+\s+){0,2}[A-Z][a-z]+\b"
+                    r"(?:\s+(?:Apt\.?|Suite|Unit|#)\s*\d+)?",
+                    0.4,
                 )
             ],
+            context=["address", "live", "lives", "moved", "mail", "mailed", "home", "sent to"],
         ),
         PatternRecognizer(
             supported_entity="BANK_ACCOUNT",
             # Long digit runs, optionally grouped. Low base score; context words
-            # ("account", "chequing") raise it above the threshold.
+            # ("account", "mortgage number") raise it above the threshold.
             patterns=[Pattern("account", r"\b\d{3,6}(?:[ -]?\d{2,6}){1,3}\b", 0.1)],
-            context=["account", "acct", "chequing", "checking", "savings", "transit"],
+            context=[
+                "account",
+                "acct",
+                "chequing",
+                "checking",
+                "savings",
+                "transit",
+                "mortgage",
+                "loan",
+                "number",
+                "reference",
+            ],
+        ),
+        PatternRecognizer(
+            supported_entity="PERSON_INTRO",
+            global_regex_flags=CASE_SENSITIVE,
+            # spaCy's small model misses names standing alone, typically a sign-off
+            # ("... called five times. Aayush Stone") or an introduction. Fixed-width
+            # look-behinds keep the match to the name itself.
+            patterns=[
+                Pattern("signoff", rf"(?<=[.!?] ){_NAME}(?=\s*(?:,|$))", 0.5),
+                Pattern("signoff_line", rf"(?<=\n){_NAME}(?=\s*(?:,|$))", 0.5),
+                *(
+                    Pattern(f"intro_{i}", rf"(?<={lead}){_NAME}", 0.5)
+                    for i, lead in enumerate(
+                        [
+                            "name is ",
+                            "Name is ",
+                            "I'm ",
+                            "I am ",
+                            "This is ",
+                            "this is ",
+                            "Name ",
+                            "daughter ",
+                            "son ",
+                            "husband ",
+                            "wife ",
+                        ]
+                    )
+                ),
+            ],
         ),
     ]
+
+
+CASE_SENSITIVE = re.MULTILINE | re.DOTALL  # Presidio's default adds IGNORECASE
+
+# One to three capitalised words, letters with accents allowed (Éloïse, Núñez).
+_NAME = r"[A-ZÀ-Þ][a-zß-ÿ'\-]+(?:\s[A-ZÀ-Þ][a-zß-ÿ'\-]+){1,2}"
 
 
 @lru_cache(maxsize=2)

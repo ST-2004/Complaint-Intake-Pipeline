@@ -12,4 +12,8 @@ No customer, employer or real-institution data is used.
 
 | `samples/classify_samples.jsonl` | 10 complaints with a drafted label (category, severity, needs-review) for the M2 sanity check. One is a prompt-injection attempt. |
 
-The labelled dev / held-out sets, red-team and counterfactual sets arrive in M4.
+| `situations.jsonl` | 80 hand-written labelled complaints (8 per category) with PII slots. Labels follow `LABELING_GUIDE.md`. |
+| `synthetic/dev.jsonl`, `synthetic/heldout.jsonl` | Generated from the situations with seeded fake PII (`python tasks.py generate-data`); 50 dev, 30 held-out, stratified. Every planted value is listed in `seeded`. |
+| `synthetic/manifest.json` | Seed and SHA-256 of each generated file. |
+
+Red-team and counterfactual sets live in `eval/`. See `docs/evaluation.md`.
