@@ -17,7 +17,7 @@ def test_default_versions_and_older_versions_are_kept():
     from complaint_intake.rules_config import load_rules
 
     settings = Settings()
-    assert (settings.prompt_version, settings.rules_version) == ("classify_v3", "rules_v2")
+    assert (settings.prompt_version, settings.rules_version) == ("classify_v3", "rules_v3")
     shas = {load_prompt(v).sha256 for v in ("classify_v1", "classify_v2", "classify_v3")}
     assert len(shas) == 3
     assert load_rules("rules_v1").version == "rules_v1"

@@ -40,10 +40,11 @@ class Settings(BaseSettings):
     # Classifier (M2) and rules (M3)
     # M5: classify_v2 (privacy definition, thresholds, strict distress, tone
     # neutrality); classify_v3 (round 2: CRITICAL examples, fee tie-break);
-    # rules_v2 (R9-R11 severity floors). Older versions are kept so earlier
-    # reports stay reproducible.
+    # rules_v2 (R9-R11 severity floors); rules_v3 (round 3: the model's distress
+    # flag alone gives HIGH + review, not CRITICAL). Older versions are kept so
+    # earlier reports stay reproducible.
     prompt_version: str = "classify_v3"
-    rules_version: str = "rules_v2"
+    rules_version: str = "rules_v3"
     model_temperature: float = Field(default=0.0, ge=0.0, le=2.0)
     model_max_output_tokens: int = Field(default=400, ge=50)
     # USD per 1M tokens, for cost reporting only. Defaults are gpt-4.1-mini

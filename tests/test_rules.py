@@ -235,7 +235,38 @@ def test_v1_config_has_no_floors():
     assert out.severity is Severity.LOW
 
 
-@pytest.mark.parametrize("config_version", ["rules_v1", "rules_v2"])
+CFG3 = load_rules("rules_v3")
+
+
+def run3(model=None, text=TEXT, **kw):
+    ctx = RuleContext(input_check=check_input(text, CFG3), redacted_text=text, model=model, **kw)
+    return apply_rules(ctx, CFG3)
+
+
+def test_v3_model_distress_flag_alone_gives_high_and_review_not_critical():
+    # M5 round 3: the flag fired on cf-04 written correctly but not with typos.
+    out = run3(triage(severity=Severity.MEDIUM, distress_suspected=True))
+    assert out.severity is Severity.HIGH and out.requires_human_review
+    assert "R4_model_flagged_distress" in out.review_reasons
+    # rules_v2 behaviour, for comparison
+    v2 = run2(triage(severity=Severity.MEDIUM, distress_suspected=True))
+    assert v2.severity is Severity.CRITICAL
+
+
+def test_v3_distress_words_still_mean_critical():
+    text = "I lost my job and honestly I don't see the point of anything anymore."
+    out = run3(triage(severity=Severity.MEDIUM, distress_suspected=True), text=text)
+    assert (
+        out.severity is Severity.CRITICAL and "R4_distress_or_vulnerability" in out.review_reasons
+    )
+
+
+def test_v3_never_lowers_a_model_critical():
+    out = run3(triage(severity=Severity.CRITICAL, distress_suspected=True))
+    assert out.severity is Severity.CRITICAL and out.requires_human_review
+
+
+@pytest.mark.parametrize("config_version", ["rules_v1", "rules_v2", "rules_v3"])
 @pytest.mark.parametrize("severity", list(Severity))
 @pytest.mark.parametrize("review", [False, True])
 def test_no_version_ever_reduces_scrutiny(config_version, severity, review):

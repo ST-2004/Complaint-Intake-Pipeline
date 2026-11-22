@@ -1,0 +1,85 @@
+# Deterministic rules configuration (rules_v3, M5 round 3).
+# Change from rules_v2: [r4_distress] model_flag_alone = "HIGH". When ONLY the model
+# sets distress_suspected (no distress words in the text), R4 now gives at least HIGH +
+# review instead of CRITICAL. In round 2 the model's flag fired on a correctly spelled
+# complaint but not on the same complaint with typos (counterfactual cf-04).
+#
+# rules_v2 notes follow.
+# Changes from rules_v1:
+#   - R9 money floor, R10 duration floor, R11 vulnerability floor (new). They apply
+#     the labelling guide's severity thresholds in code: in M5 round 1 the model was
+#     given these thresholds in the prompt and still under-rated 4 HIGH cases.
+#   - "can't feed / can't afford food / homeless / evicted" moved from R4 (CRITICAL)
+#     to R11 (HIGH): the guide says inability to afford essentials is HIGH unless the
+#     text also shows serious distress.
+# Rules only ever ADD scrutiny: none can lower a severity or remove a review.
+# Matching is case-insensitive on the REDACTED text, on word boundaries.
+
+version = "rules_v3"
+
+[input]
+min_chars = 20
+min_words = 4
+max_chars = 20000
+min_letter_ratio = 0.5
+
+[r3_regulatory]
+terms = [
+  "regulator", "regulatory", "ombudsman", "ombudsperson", "obsi", "fcac",
+  "cfpb", "fca", "financial ombudsman", "lawyer", "attorney", "solicitor",
+  "legal action", "take legal", "sue", "suing", "lawsuit", "court",
+  "small claims", "class action", "file a complaint with", "report you to",
+]
+
+# R4: SERIOUS distress only (sets CRITICAL and review).
+[r4_distress]
+# Severity when only the model flags distress. Keywords below still mean CRITICAL.
+model_flag_alone = "HIGH"
+terms = [
+  "suicide", "suicidal", "kill myself", "end my life", "end it all",
+  "self-harm", "self harm", "hurt myself", "don't see the point",
+  "dont see the point", "can't go on", "cant go on", "hopeless", "give up on life",
+  "abuse", "abusive partner", "coerced", "scared for my safety", "threatened me",
+]
+
+# R9: severity floors from the largest dollar amount in the text ("$1,850",
+# "1850 dollars"). Amounts are not redacted, so this works on the redacted text.
+[r9_money]
+high_over = 1000.0     # more than this -> at least HIGH
+medium_from = 10.0     # this or more   -> at least MEDIUM
+
+# R10: a problem dated more than a month back ("six weeks ago", "for the past
+# 45 days") -> at least HIGH. Years are ignored on purpose: "a customer for 20
+# years" is not an open problem.
+[r10_duration]
+high_over_days = 30
+
+# R11: vulnerability without serious distress -> at least HIGH (not CRITICAL).
+[r11_vulnerability]
+terms = [
+  "passed away", "died", "death certificate", "funeral", "executor", "bereavement",
+  "dementia", "alzheimer's", "alzheimers", "blind", "screen reader", "deaf",
+  "wheelchair", "disability", "disabled", "elderly",
+  "can't feed", "cant feed", "can't afford food", "can't buy food", "can't buy groceries",
+  "cant buy groceries", "homeless", "evicted",
+]
+# Older age: "my father is 84", "she is 79", "aged 81".
+patterns = ['\b(?:is|aged|age)\s+(?:7[5-9]|[89]\d)\b']
+
+[injection]
+patterns = [
+  'ignore (all |any )?((previous|prior|above|earlier|your|the|these|those|my|system) ){1,3}(instructions|rules|prompts?)',
+  'disregard (all |any )?((previous|prior|above|earlier|your|the|these|those|my|system) ){1,3}(instructions|rules|prompts?)',
+  'forget (all |any )?((previous|prior|above|earlier|your|the) ){1,3}(instructions|rules)',
+  '(system|developer) (prompt|message|note|mode)',
+  'you are now',
+  'act as (a|an|the)',
+  '(classify|label|mark|categori[sz]e) (this|it|me) as',
+  'set (requires_human_review|severity|category)',
+  'requires_human_review',
+  'print (your|the) (prompt|instructions)',
+  'reveal (your|the) (prompt|instructions)',
+  '</?\s*complaint\s*>',
+  'refund me automatically',
+  'close (this|the) case',
+]

@@ -189,9 +189,16 @@ def apply_rules(ctx: RuleContext, config: RulesConfig) -> RulesOutcome:
     distress_hit = bool(text and config.distress.search(text)) or bool(
         phrases and config.distress.search(phrases)
     )
-    if distress_hit or (model and model.distress_suspected):
+    model_flag = bool(model and model.distress_suspected)
+    if distress_hit or (model_flag and config.model_distress_level is Severity.CRITICAL):
         severity = Severity.CRITICAL
         fire("R4", "R4_distress_or_vulnerability")
+    elif model_flag:
+        # rules_v3: the model's flag alone is not evidence enough for CRITICAL (M5: it
+        # fired on a correctly spelled complaint but not on the same one with typos).
+        # Still a human, still at least HIGH; CRITICAL needs words in the text.
+        floor("R4", config.model_distress_level)
+        fire("R4", "R4_model_flagged_distress")
 
     platform_attack = bool({"jailbreak", "indirect_attack"} & set(ctx.filter_categories))
     if (

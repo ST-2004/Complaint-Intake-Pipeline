@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
+from complaint_intake.schemas import Severity
+
 CONFIG_DIR = Path(__file__).resolve().parents[2] / "config"
 
 
@@ -26,6 +28,8 @@ class RulesConfig:
     money_medium_from: float | None = None
     duration_high_over_days: int | None = None
     vulnerability: tuple[re.Pattern[str], ...] = ()
+    # Severity when ONLY the model flags distress (no keyword). v1/v2: CRITICAL.
+    model_distress_level: Severity = Severity.CRITICAL
 
 
 def _terms_regex(terms: list[str]) -> re.Pattern[str]:
@@ -44,6 +48,9 @@ def parse_rules(data: dict) -> RulesConfig:
         vulnerability.append(_terms_regex(vuln["terms"]))
     vulnerability.extend(re.compile(p, re.IGNORECASE) for p in vuln.get("patterns", []))
     return RulesConfig(
+        model_distress_level=Severity(
+            data["r4_distress"].get("model_flag_alone", Severity.CRITICAL.value)
+        ),
         money_high_over=money.get("high_over"),
         money_medium_from=money.get("medium_from"),
         duration_high_over_days=duration.get("high_over_days"),
